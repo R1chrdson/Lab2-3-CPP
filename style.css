@@ -1,0 +1,15 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+}
+
+#list {
+    min-width: 250px;
+    background: gray;
+    margin-left: auto;
+}
