@@ -3,12 +3,85 @@
 <head>
     <title><%=title %></title>
     <link href="/style.css" rel="stylesheet">
-
+    <script src="https://code.jquery.com/jquery-3.1.1.js" integrity="sha256-16cdPddA6VdVInumRGo6IbivbERE8p7CQR3HzTBuELA=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+          integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+            integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+            crossorigin=""></script>
 </head>
 <body>
     <div id="map"></div>
     <div id="list">
-        "cool"
+        <% for (let place of places) {%>
+        <a class="place_list" data-id="<%=place._id%>" data-latlng="<%=place.latlng%>"><%=place.place%></a>
+        <% } %>
     </div>
 </body>
+<script>
+    const map = L.map('map');
+    var markers = [];
+    navigator.geolocation.getCurrentPosition(function (pos) {
+        map.setView([pos['coords'].latitude, pos['coords'].longitude], 6)
+    }, function () {
+        map.setView([48.3830, 31.1830], 5);
+    });
+
+    function popup_delete (id, name, latlng) {
+        var del = name + '<br><button class="delete" id='+ id +'>Delete</button>';
+        marker = L.marker(latlng)
+            .bindPopup(del);
+        marker.addTo(map);
+        markers.push({marker, id});
+    }
+    /*$('.place_list').each(function (e) {
+        console.log($(this));
+    });*/
+    var Stadia_AlidadeSmoothDark = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20,
+        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    map.on('click', function(e) {
+        $.ajax({
+            type: 'POST',
+            url: '/add',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify(e.latlng),
+            success: function (place) {
+                $('#list').append('<a class="place_list" data-id="'+place._id+'" data-latlng="'+place.latlng+'">'+place.place+'</a>').click(function () {
+                    map.setView(place.latlng, 6);
+                });
+                popup_delete(place._id, place.place, place.latlng);
+            }
+        });
+    });
+    map.on('popupopen', function(e) {
+        $(".delete").click(function () {
+            var id = $(".delete").attr('id');
+            markers.find(marker => marker.id == id).marker.remove();
+            $('[data-id='+id+']').remove();
+            $.ajax({
+                url:"delete",
+                type:"POST",
+                dataType:"json",
+                data: {
+                    id
+                    }
+                })
+            });
+        });
+    $('.place_list').each(function() {
+        id = $(this).attr('data-id');
+        name = $(this).text();
+        latlng = $(this).attr('data-latlng');
+        popup_delete(id, name, latlng.split(','));
+        $(this).click(function () {
+            latlng = $(this).attr('data-latlng');
+            map.setView(latlng.split(','), 6);
+        });
+    });
+    console.log(map._layers);
+</script>
 </html>
