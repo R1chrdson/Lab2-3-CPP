@@ -35,33 +35,43 @@ app.get('/', function(_req, res) {
 });
 
 app.post('/add', async function (_req, res) {
-    try {
         latlng = [_req.body.lat, _req.body.lng];
         place_name = [];
-        place = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latlng[0]},${latlng[1]}&sensor=true&key=${Google_API}`)
-            .then(response => {return response.json()})
-            .then(data => {
-                console.log(data);
-                const components = data.results[0].address_components;
-                components.forEach(component => {
-                    if (!['street_number', 'route', 'postal_code'].some(el => component.types.includes(el)))
-                        place_name.push(component.short_name);
+        try {
+            place = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latlng[0]},${latlng[1]}&sensor=true&key=${Google_API}`)
+                .then(response => {return response.json()})
+                .then(data => {
+                    console.log('STATUS:', data.status);
+                    if(!(data.status === 'ZERO_RESULTS' || data.status === 'INVALID_REQUEST')) {
+                        const components = data.results[0].address_components;
+                        components.forEach(component => {
+                            if (!['street_number', 'route', 'postal_code'].some(el => component.types.includes(el)))
+                                place_name.push(component.short_name);
+                        });
+                    }
+                    else {
+                        console.log(data);
+                        throw 'invalid';
+                    }
                 });
-            });
-        mongo
-            .collection('places')
-            .insertOne({place: place_name.join(' '), latlng})
-            .then(function (place) {
-                res.send(place.ops[0]);
-            });
-    } catch (error){
-        console.log(`There is no address name: ${latlng}`);
-        console.error(error);
-    }
+        } catch (error){
+            res.send(null);
+            console.log(`There is no address name: ${latlng}`);
+            console.error(error);
+        }
+        if(place_name != '') {
+            console.log('Addition:', place_name);
+            mongo
+                .collection('places')
+                .insertOne({place: place_name.join(' '), latlng})
+                .then(function (place) {
+                    res.send(place.ops[0]);
+                });
+        }
 });
 
 app.post('/delete', function (req, res) {
-    console.log(req.body.id);
+    console.log('Deletion:', req.body.id);
     mongo
         .collection('places')
         .deleteOne({ _id: ObjectId(req.body.id)});
@@ -74,31 +84,3 @@ app.listen(PORT, function() {
 });
 
 app.listen();
-
-
-/*
-* app.post('/add', async function (_req, res) {
-    try {
-        latlng = [_req.body.lat, _req.body.lng];
-        place_name = [];
-        await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latlng[0]},${latlng[1]}&sensor=true&key=${Google_API}`)
-            .then(response => {return response.json()})
-            .then(data => {
-                console.log(data);
-                const components = data.results[0].address_components;
-                components.forEach(component => {
-                    if (!['street_number', 'route', 'postal_code'].some(el => component.types.includes(el)))
-                        place_name.push(component.short_name);
-                });
-            });
-        mongo
-            .collection('places')
-            .insertOne({place: place_name.join(' '), latlng})
-            .then(function (place) {
-                res.send(place.ops[0]);
-            });
-    } catch (error){
-        console.log(`There is no address name: ${latlng}`);
-        console.error(error);
-    }
-});*/
